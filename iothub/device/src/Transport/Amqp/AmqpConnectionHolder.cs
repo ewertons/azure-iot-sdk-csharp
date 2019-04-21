@@ -30,7 +30,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             _amqpConnection.Closed += OnDisconnected;
         }
 
-        internal static async Task<AmqpResource> AllocateAsync(DeviceIdentity deviceIdentity, Action<AmqpResource> diconnectionNotification, TimeSpan timeout)
+        internal static async Task<AmqpResource> AllocateAsync(DeviceIdentity deviceIdentity, Action<AmqpResource> onConnectionDisconnected, TimeSpan timeout)
         {
             if (Logging.IsEnabled) Logging.Enter(typeof(AmqpResource), deviceIdentity, timeout, $"{nameof(AllocateAsync)}");
             IAmqpConnector amqpConnector = null;
@@ -45,7 +45,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
                 {
                     amqpAuthenticationRefresher = await StartAmqpAuthenticationRefresherAsync(deviceIdentity, amqpCbsLink, timeout).ConfigureAwait(false);
                 }
-                AmqpResource amqpResource = new AmqpResource(amqpConnection, amqpCbsLink, amqpAuthenticationRefresher, diconnectionNotification);
+                AmqpResource amqpResource = new AmqpResource(amqpConnection, amqpCbsLink, amqpAuthenticationRefresher, onConnectionDisconnected);
                 if (Logging.IsEnabled) Logging.Associate(amqpResource, amqpConnection, $"{nameof(AllocateAsync)}");
                 if (Logging.IsEnabled) Logging.Associate(amqpResource, amqpCbsLink, $"{nameof(AllocateAsync)}");
                 if (Logging.IsEnabled)Logging.Associate(amqpResource, amqpAuthenticationRefresher, $"{nameof(AllocateAsync)}");
@@ -137,11 +137,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
         internal bool IsValid()
         {
             return !IsInvalid();
-        }
-
-        internal bool IsDisposed()
-        {
-            return _disposed;
         }
 
         private void OnDisconnected(object o, EventArgs args)

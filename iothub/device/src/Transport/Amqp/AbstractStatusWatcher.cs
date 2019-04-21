@@ -6,7 +6,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 {
     internal abstract class AbstractStatusWatcher : IStatusReportor, IDisposable
     {
-        private readonly List<IStatusMonitor> _statusMonitors;
+        private readonly HashSet<IStatusMonitor> _statusMonitors;
         protected readonly object _stateLock;
 
         protected bool _disposed;
@@ -17,7 +17,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 
         protected AbstractStatusWatcher()
         {
-            _statusMonitors = new List<IStatusMonitor>();
+            _statusMonitors = new HashSet<IStatusMonitor>();
             _stateLock = new object();
         }
 
@@ -52,7 +52,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
         protected void ChangeStatus(Status status)
         {
             if (Logging.IsEnabled) Logging.Enter(this, status, $"{nameof(ChangeStatus)}");
-            List<IStatusMonitor> statusMonitors;
+            IEnumerable<IStatusMonitor> statusMonitors;
             lock (_stateLock)
             {
                 if (_disposed || (_closed && status != Status.Disposed))

@@ -4,6 +4,7 @@
 using Microsoft.Azure.Devices.Shared;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 {
@@ -46,6 +47,8 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
         {
             if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, $"{nameof(ResolveConnectionHolder)}");
             int index = Math.Abs(deviceIdentity.GetHashCode()) % connectionGroup.Length;
+            Debug.WriteLine($"{deviceIdentity.GetHashCode()} position {index}");
+            if (Logging.IsEnabled) Logging.Info(this, $"{deviceIdentity} position {index}", $"{nameof(ResolveConnectionHolder)}");
             IAmqpConnectionHolder connectionHolder = connectionGroup[index];
 
             if (connectionHolder == null)

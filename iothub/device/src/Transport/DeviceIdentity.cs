@@ -15,6 +15,8 @@ namespace Microsoft.Azure.Devices.Client.Transport
     /// </summary>
     internal class DeviceIdentity
     {
+        private const int s_hashcodeInit = 620602339;
+        private const int s_hashcodeSeed = 1521134295;
         internal IotHubConnectionString IotHubConnectionString { get; }
         internal AmqpTransportSettings AmqpTransportSettings { get; }
         internal ProductInfo ProductInfo { get; }
@@ -75,7 +77,7 @@ namespace Microsoft.Azure.Devices.Client.Transport
 
         public override int GetHashCode()
         {
-            int hashCode = UpdateHashCode(620602339, IotHubConnectionString.DeviceId);
+            int hashCode = UpdateHashCode(s_hashcodeInit, IotHubConnectionString.DeviceId);
             hashCode = UpdateHashCode(hashCode, IotHubConnectionString.HostName);
             hashCode = UpdateHashCode(hashCode, IotHubConnectionString.ModuleId);
             hashCode = UpdateHashCode(hashCode, AmqpTransportSettings.GetTransportType());
@@ -83,17 +85,10 @@ namespace Microsoft.Azure.Devices.Client.Transport
             return hashCode;
         }
 
-        private int UpdateHashCode(int hashCode, object field)
+        private static int UpdateHashCode(int hashCode, object field)
         {
-            if (field == null)
-            {
-                return hashCode;
-            }
-            else
-            {
-                return hashCode * -1521134295 + field.GetHashCode();
-            }
 
+            return hashCode * s_hashcodeSeed + (field?.GetHashCode() ?? 0);
         }
     }
 }
