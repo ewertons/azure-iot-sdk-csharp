@@ -33,12 +33,13 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             Action<bool> onUnitDisconnected)
         {
             if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, $"{nameof(CreateAmqpUnit)}");
+
             IAmqpConnectionManager amqpConnectionManager = ResolveConnectionPool(deviceIdentity.IotHubConnectionString.HostName);
             if (Logging.IsEnabled) Logging.Associate(deviceIdentity, amqpConnectionManager, $"{nameof(CreateAmqpUnit)}");
+
             IAmqpConnectionHolder amqpConnectionHolder = amqpConnectionManager.AllocateAmqpConnectionHolder(deviceIdentity);
-            if (Logging.IsEnabled) Logging.Associate(deviceIdentity, amqpConnectionHolder, $"{nameof(CreateAmqpUnit)}");
-            IAmqpSessionHolder amqpSessionHolder = new AmqpSessionHolder(deviceIdentity, amqpConnectionHolder);
-            if (Logging.IsEnabled) Logging.Associate(deviceIdentity, amqpSessionHolder, $"{nameof(CreateAmqpUnit)}");
+            IAmqpSessionHolder amqpSessionHolder = amqpConnectionHolder.AllocateAmqpConnectionHolder(deviceIdentity);
+
             bool isPooling = deviceIdentity?.AmqpTransportSettings?.AmqpConnectionPoolSettings?.Pooling ?? false;
 
             Action<bool> onDeviceDisconnected = gracefulDisconnect =>
@@ -77,9 +78,9 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             );
 
             // Connection directly report to AmqpUnit it's status to trigger pipeline to reconnect
-            amqpConnectionHolder.AddStatusMonitor(amqpUnit);
+            amqpConnectionHolder.AttachStatusMonitor(amqpUnit);
             // Session directly report to AmqpUnit it's status to trigger pipeline to reconnect
-            amqpSessionHolder.AddStatusMonitor(amqpUnit);
+            amqpSessionHolder.AttachStatusMonitor(amqpUnit);
             
             if (Logging.IsEnabled) Logging.Exit(deviceIdentity, amqpUnit, $"{nameof(CreateAmqpUnit)}");
             return amqpUnit;

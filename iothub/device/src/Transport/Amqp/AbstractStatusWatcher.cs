@@ -87,18 +87,18 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             if (Logging.IsEnabled) Logging.Exit(this, status, $"{nameof(ChangeStatus)}");
         }
 
-        public void AddStatusMonitor(IStatusMonitor statusMonitor)
+        public void AttachStatusMonitor(IStatusMonitor statusMonitor)
         {
-            if (Logging.IsEnabled) Logging.Enter(this, statusMonitor, $"{nameof(AddStatusMonitor)}");
+            if (Logging.IsEnabled) Logging.Enter(this, statusMonitor, $"{nameof(AttachStatusMonitor)}");
 
             lock (_stateLock)
             {
                 ThrowExceptionIfClosedOrDisposed();
                 _statusMonitors.Add(statusMonitor);
-                if (Logging.IsEnabled) Logging.Associate(this, statusMonitor, $"{nameof(AddStatusMonitor)}");
+                if (Logging.IsEnabled) Logging.Associate(this, statusMonitor, $"{nameof(AttachStatusMonitor)}");
             }
 
-            if (Logging.IsEnabled) Logging.Exit(this, statusMonitor, $"{nameof(AddStatusMonitor)}");
+            if (Logging.IsEnabled) Logging.Exit(this, statusMonitor, $"{nameof(AttachStatusMonitor)}");
         }
 
         public void DetachStatusMonitor(IStatusMonitor statusMonitor)

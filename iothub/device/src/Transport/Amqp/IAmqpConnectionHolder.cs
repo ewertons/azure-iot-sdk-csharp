@@ -9,6 +9,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 {
     internal interface IAmqpConnectionHolder : IStatusReportor, IDisposable
     {
+        IAmqpSessionHolder AllocateAmqpConnectionHolder(DeviceIdentity deviceIdentity);
         Task<IAmqpAuthenticationRefresher> StartAmqpAuthenticationRefresherAsync(DeviceIdentity deviceIdentity, TimeSpan timeout);
         Task<AmqpSession> CreateAmqpSessionAsync(DeviceIdentity deviceIdentity, TimeSpan timeout);
         void Close();

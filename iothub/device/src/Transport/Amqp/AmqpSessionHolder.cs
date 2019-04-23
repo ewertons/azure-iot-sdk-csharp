@@ -29,8 +29,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             _amqpLinks = new HashSet<AmqpLink>();
             _sessionLock = new SemaphoreSlim(1, 1);
 
-            if (Logging.IsEnabled) Logging.Associate(amqpConnectionHolder, deviceIdentity, $"{nameof(AmqpSessionHolder)}");
-            if (Logging.IsEnabled) Logging.Associate(amqpConnectionHolder, this, $"{nameof(AmqpSessionHolder)}");
             if (Logging.IsEnabled) Logging.Associate(deviceIdentity, this, $"{nameof(AmqpSessionHolder)}");
             if (Logging.IsEnabled) Logging.Exit(this, deviceIdentity, $"{nameof(AmqpSessionHolder)}");
         }

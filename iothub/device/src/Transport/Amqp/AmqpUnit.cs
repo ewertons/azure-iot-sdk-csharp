@@ -4,6 +4,7 @@
 using Microsoft.Azure.Amqp;
 using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Azure.Devices.Client.Extensions;
+using Microsoft.Azure.Devices.Client.Logger;
 using Microsoft.Azure.Devices.Shared;
 using System;
 using System.Threading;
@@ -58,6 +59,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             _methodsLinkLock = new SemaphoreSlim(1, 1);
             _twinLinksLock = new SemaphoreSlim(1, 1);
             if (Logging.IsEnabled) Logging.Associate(this, _deviceIdentity, $"{nameof(_deviceIdentity)}");
+            EventCounterLogger.GetInstance().OnAmqpUnitCreated();
         }
         
         #region Usability
@@ -423,6 +425,12 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             }
 
             if (Logging.IsEnabled) Logging.Exit(this, statusReportor, status, $"{nameof(OnStatusChange)}");
+        }
+
+        public void Dispose()
+        {
+            base.Dispose();
+            EventCounterLogger.GetInstance().OnAmqpUnitDisposed();
         }
 
         protected override void CleanupResource()

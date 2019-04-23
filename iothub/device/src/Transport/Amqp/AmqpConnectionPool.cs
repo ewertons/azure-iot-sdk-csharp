@@ -4,7 +4,6 @@
 using Microsoft.Azure.Devices.Shared;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 
 namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 {
@@ -47,7 +46,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
         {
             if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, $"{nameof(ResolveConnectionHolder)}");
             int index = Math.Abs(deviceIdentity.GetHashCode()) % connectionGroup.Length;
-            Debug.WriteLine($"{deviceIdentity.GetHashCode()} position {index}");
             if (Logging.IsEnabled) Logging.Info(this, $"{deviceIdentity} position {index}", $"{nameof(ResolveConnectionHolder)}");
             IAmqpConnectionHolder connectionHolder = connectionGroup[index];
 
@@ -72,6 +70,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
                 {
                     IAmqpConnectionHolder[] connectionGroup = ResolveConnectionGroup(deviceIdentity);
                     amqpConnectionHolder = amqpConnectionHolder = ResolveConnectionHolder(connectionGroup, deviceIdentity);
+                    if (Logging.IsEnabled) Logging.Associate(connectionGroup, amqpConnectionHolder, $"{nameof(AllocateAmqpConnectionHolder)}");
                 }
             }
             else
@@ -79,6 +78,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
                 amqpConnectionHolder = new AmqpConnectionHolder();
             }
 
+            if (Logging.IsEnabled) Logging.Associate(deviceIdentity, amqpConnectionHolder, $"{nameof(AllocateAmqpConnectionHolder)}");
             if (Logging.IsEnabled) Logging.Exit(deviceIdentity, amqpConnectionHolder, $"{nameof(AllocateAmqpConnectionHolder)}");
             return amqpConnectionHolder;
         }

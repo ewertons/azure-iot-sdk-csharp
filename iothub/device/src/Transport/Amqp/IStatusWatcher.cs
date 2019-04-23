@@ -14,7 +14,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 
     internal interface IStatusReportor
     {
-        void AddStatusMonitor(IStatusMonitor statusMonitor);
+        void AttachStatusMonitor(IStatusMonitor statusMonitor);
         void DetachStatusMonitor(IStatusMonitor statusMonitor);
     }
 

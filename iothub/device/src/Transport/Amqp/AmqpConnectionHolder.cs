@@ -179,6 +179,16 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             _connectionLock = new SemaphoreSlim(1, 1);
         }
 
+
+        public IAmqpSessionHolder AllocateAmqpConnectionHolder(DeviceIdentity deviceIdentity)
+        {
+            if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, $"{nameof(AllocateAmqpConnectionHolder)}");
+            IAmqpSessionHolder amqpSessionHolder = new AmqpSessionHolder(deviceIdentity, this);
+            if (Logging.IsEnabled) Logging.Associate(this, amqpSessionHolder, $"{nameof(AllocateAmqpConnectionHolder)}");
+            if (Logging.IsEnabled) Logging.Exit(this, deviceIdentity, $"{nameof(AllocateAmqpConnectionHolder)}");
+            return amqpSessionHolder;
+        }
+
         private async Task<AmqpResource> EnsureAmqpResource(DeviceIdentity deviceIdentity, TimeSpan timeout)
         {
 
@@ -296,5 +306,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             if (Logging.IsEnabled) Logging.Info(this, $"{nameof(DisposeResource)}");
             CleanupResource();
         }
+
     }
 }
