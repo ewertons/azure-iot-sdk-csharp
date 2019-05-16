@@ -1,36 +1,34 @@
 ﻿using Microsoft.Azure.Devices.Shared;
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Devices.Client.Transport.Stateful
 {
-    
-    internal class ResourceHolder : IResourceHolder
+    internal abstract class ResourceHolder<T> : IResourceHolder<T>, IResourceStatusListener<T> where T : IResource
     {
         #region Members-Constructor
+
         // Any status update should use status lock
         private readonly object _statusLock;
         // Any resource change should use resource lock
         private readonly SemaphoreSlim _resourceLock;
-        // Get a local copy with status lock, do Not call status listener in any lock to avoid deadlock, 
-        private readonly HashSet<IResourceStatusListener> _resourceStatusListeners;
-        private readonly IResourceAllocator _resourceAllocator;
+        private readonly IResourceAllocator<T> _resourceAllocator;
 
-        private IResource _resource; 
+        private T _resource; 
         private OperationStatus _operationStatus;
 
-        internal ResourceHolder(IResourceAllocator resourceAllocator)
+        private Action _onResourceDisconnection;
+
+        internal ResourceHolder(IResourceAllocator<T> resourceAllocator, Action onResourceDisconnection)
         {
             _statusLock = new object();
             _resourceLock = new SemaphoreSlim(1, 1);
-            _resourceStatusListeners = new HashSet<IResourceStatusListener>();
             _operationStatus = OperationStatus.Active;
-
             _resourceAllocator = resourceAllocator;
+            _onResourceDisconnection = onResourceDisconnection;
         }
-        #region
+        #endregion
 
         #region IDisposable
         public void Dispose()
@@ -49,60 +47,16 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
                 _operationStatus = OperationStatus.Disposed;
             }
 
-            _resourceAllocator.OnResourceOperationStatusChange(this, _operationStatus);
-
             _resource?.Dispose();
-
-            lock (_statusLock)
-            {
-                _resourceStatusListeners.Clear();
-            }
 
             if (Logging.IsEnabled) Logging.Exit(this, disposing, $"{nameof(Dispose)}");
         }
         #endregion
 
-        #region IStatusReporter
-        public void AttachResourceStatusListener(IResourceStatusListener resourceStatusListener)
+        #region IResourceHolder
+        public async Task<T> EnsureResourceAsync(DeviceIdentity deviceIdentity, TimeSpan timeout)
         {
-            if (Logging.IsEnabled) Logging.Enter(this, resourceStatusListener, $"{nameof(AttachResourceStatusListener)}");
-
-            ResourceStatus resourceStatus = ResourceStatus.Disconnected;
-            lock (_statusLock)
-            {
-                ThrowExceptionIfDisposed();
-                _resourceStatusListeners.Add(resourceStatusListener);
-
-                if (_resource?.IsValid() ?? false)
-                {
-                    resourceStatus = ResourceStatus.Connected;
-                }
-                if (Logging.IsEnabled) Logging.Associate(this, resourceStatusListener, $"{nameof(AttachResourceStatusListener)}");
-            }
-
-            resourceStatusListener.OnResourceStatusChange(this, resourceStatus);
-            if (Logging.IsEnabled) Logging.Exit(this, resourceStatusListener, $"{nameof(AttachResourceStatusListener)}");
-        }
-
-        public void DetachResourceStatusListener(IResourceStatusListener resourceStatusListener)
-        {
-            if (Logging.IsEnabled) Logging.Enter(this, resourceStatusListener, $"{nameof(DetachResourceStatusListener)}");
-
-            lock (_statusLock)
-            {
-                ThrowExceptionIfDisposed();
-                _resourceStatusListeners.Remove(resourceStatusListener);
-                if (Logging.IsEnabled) Logging.Associate(this, resourceStatusListener, $"{nameof(DetachResourceStatusListener)}");
-            }
-
-            if (Logging.IsEnabled) Logging.Exit(this, resourceStatusListener, $"{nameof(DetachResourceStatusListener)}");
-
-        }
-        #endregion
-
-        public async Task<IResource> AllocateOrRetrieveResourceAsync(TimeSpan timeout)
-        {
-            if (Logging.IsEnabled) Logging.Enter(this, timeout, $"{nameof(AllocateOrRetrieveResourceAsync)}");
+            if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, timeout, $"{nameof(EnsureResourceAsync)}");
 
             // check operation status
             lock (_statusLock)
@@ -115,16 +69,16 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
             bool gain = await _resourceLock.WaitAsync(timeout).ConfigureAwait(false);
             if (!gain)
             {
-                throw new TimeoutException($"{this} {nameof(AllocateOrRetrieveResourceAsync)}({timeout}) timeout.");
+                throw new TimeoutException($"{this} {deviceIdentity} {nameof(EnsureResourceAsync)}({timeout}) failed to gain resource lock.");
             }
 
             try
             {
                 if (_resource?.IsValid() ?? false)
                 {
-                    _resource = await _resourceAllocator.AllocateResourceAsync(timeout).ConfigureAwait(false);
-                    
-                    if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(AllocateOrRetrieveResourceAsync)}");
+                    _resource = await _resourceAllocator.AllocateResourceAsync(deviceIdentity, this, timeout).ConfigureAwait(false);
+                    if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(EnsureResourceAsync)}");
+                    if (Logging.IsEnabled) Logging.Associate(deviceIdentity, _resource, $"{nameof(EnsureResourceAsync)}");
                 }
             }
             finally
@@ -143,32 +97,29 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
                 {
                     _resource.Abort();
                 }
-
-                _resource.AttachResourceStatusListener(this);
             }
 
             ThrowExceptionIfDisposed();
             ThrowExceptionIfInactived();
-            if (Logging.IsEnabled) Logging.Exit(this, timeout, $"{nameof(AllocateOrRetrieveResourceAsync)}");
+            if (Logging.IsEnabled) Logging.Exit(this, deviceIdentity, timeout, $"{nameof(EnsureResourceAsync)}");
             return _resource;
         }
 
-        #region IResource
-        public async Task OpenAsync(TimeSpan timeout)
+        public async Task<T> OpenAsync(DeviceIdentity deviceIdentity, TimeSpan timeout)
         {
-            if (Logging.IsEnabled) Logging.Enter(this, timeout, $"{nameof(OpenAsync)}");
+            if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, timeout, $"{nameof(OpenAsync)}");
 
             lock (_statusLock)
             {
                 ThrowExceptionIfDisposed();
                 _operationStatus = OperationStatus.Active;
             }
+            
+            T resource = await EnsureResourceAsync(deviceIdentity, timeout).ConfigureAwait(false);
 
-            _resourceAllocator.OnResourceOperationStatusChange(this, _operationStatus);
-
-            await AllocateOrRetrieveResourceAsync(timeout).ConfigureAwait(false);
-
-            if (Logging.IsEnabled) Logging.Exit(this, timeout, $"{nameof(OpenAsync)}");
+            if (Logging.IsEnabled) Logging.Associate(deviceIdentity, this, $"{nameof(OpenAsync)}");
+            if (Logging.IsEnabled) Logging.Exit(this, deviceIdentity, timeout, $"{nameof(OpenAsync)}");
+            return resource;
         }
 
         public async Task CloseAsync(TimeSpan timeout)
@@ -180,8 +131,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
                 _operationStatus = OperationStatus.Inactive;
             }
 
-            _resourceAllocator.OnResourceOperationStatusChange(this, _operationStatus);
-
             bool gain = await _resourceLock.WaitAsync(timeout).ConfigureAwait(false);
             if (!gain)
             {
@@ -192,7 +141,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
             {
                 if (!(_resource?.IsValid() ?? false))
                 {
-                    await _resource.CloseAsync(timeout).ConfigureAwait(false);
+                    _resource.Abort();
                     if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(CloseAsync)}");
                 }
             }
@@ -206,36 +155,39 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
 
         public void Abort()
         {
-            if (Logging.IsEnabled) Logging.Enter(this, _resource, $"{nameof(Abort)}");
-
             lock (_statusLock)
             {
                 ThrowExceptionIfDisposed();
+                if (Logging.IsEnabled) Logging.Enter(this, _resource, $"{nameof(Abort)}");
                 _operationStatus = OperationStatus.Inactive;
+                if (!(_resource?.IsValid() ?? false))
+                {
+                    _resource.Abort();
+                    if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(Abort)}");
+                }
+                if (Logging.IsEnabled) Logging.Exit(this, _resource, $"{nameof(Abort)}");
             }
-
-            _resourceAllocator.OnResourceOperationStatusChange(this, _operationStatus);
-
-            _resourceLock.Wait();
-            try
-            {
-                _resource.Abort();
-                if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(Abort)}");
-            }
-            finally
-            {
-                _resourceLock.Release();
-            }
-
-            if (Logging.IsEnabled) Logging.Exit(this, _resource, $"{nameof(Abort)}");
         }
+        #endregion
 
-        public bool IsValid()
+        #region IResourceStatusListener
+        public void OnResourceStatusChange(T reporter, ResourceStatus resourceStatus)
         {
+            if (Logging.IsEnabled) Logging.Enter(this, reporter, resourceStatus, $"{nameof(OnResourceStatusChange)}");
+            bool disconnected = false;
             lock (_statusLock)
             {
-                return _operationStatus == OperationStatus.Active && (_resource?.IsValid() ?? false);
+                if (_operationStatus == OperationStatus.Active && resourceStatus == ResourceStatus.Disconnected && ReferenceEquals(_resource, reporter))
+                {
+                    _resource = default;
+                    disconnected = true;
+                }
             }
+            if (disconnected)
+            {
+                _onResourceDisconnection?.Invoke();
+            }
+            if (Logging.IsEnabled) Logging.Exit(this, reporter, resourceStatus, $"{nameof(OnResourceStatusChange)}");
         }
         #endregion
 
@@ -257,26 +209,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
                 throw new InvalidOperationException($"{this} is inactived.");
             }
         }
-
-        public void OnResourceStatusChange(object reporter, ResourceStatus resourceStatus)
-        {
-            if (Logging.IsEnabled) Logging.Enter(this, reporter, resourceStatus, $"{nameof(OnResourceStatusChange)}");
-
-            List<IResourceStatusListener> statusListeners;
-            lock (_statusLock)
-            {
-                statusListeners = new List<IResourceStatusListener>(_resourceStatusListeners);
-            }
-
-            if (Logging.IsEnabled) Logging.Info(this, $"{this} {_resource} status changed to {resourceStatus}.", $"{nameof(ThrowExceptionIfDisposed)}");
-
-            foreach (IResourceStatusListener statusListener in statusListeners)
-            {
-                statusListener.OnResourceStatusChange(this, resourceStatus);
-            }
-
-            if (Logging.IsEnabled) Logging.Exit(this, reporter, resourceStatus, $"{nameof(OnResourceStatusChange)}");
-        }
         #endregion
+
     }
 }

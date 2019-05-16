@@ -1,7 +1,7 @@
 ﻿namespace Microsoft.Azure.Devices.Client.Transport.Stateful
 {
-    internal interface IResourceStatusListener
+    internal interface IResourceStatusListener<T> where T : IResource
     {
-        void OnResourceStatusChange(object reporter, ResourceStatus resourceStatus);
+        void OnResourceStatusChange(T reporter, ResourceStatus resourceStatus);
     }
 }

@@ -180,7 +180,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
 
         internal static async Task<AmqpMessage> ReceiveAmqpMessageAsync(ReceivingAmqpLink receivingAmqpLink, TimeSpan timeout)
         {
-            if (Logging.IsEnabled) Logging.Enter(receivingAmqpLink, timeout, $"{nameof(DisposeMessageAsync)}");
+            if (Logging.IsEnabled) Logging.Enter(receivingAmqpLink, timeout, $"{nameof(ReceiveAmqpMessageAsync)}");
             if (receivingAmqpLink == null || receivingAmqpLink.IsClosing())
             {
                 throw new IotHubCommunicationException("ReceivingAmqpLink is closed.");
@@ -188,7 +188,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
             try
             {
                 AmqpMessage amqpMessage = await receivingAmqpLink.ReceiveMessageAsync(timeout).ConfigureAwait(false);
-                if (Logging.IsEnabled) Logging.Exit(receivingAmqpLink, timeout, $"{nameof(DisposeMessageAsync)}");
+                if (Logging.IsEnabled) Logging.Exit(receivingAmqpLink, timeout, $"{nameof(ReceiveAmqpMessageAsync)}");
                 return amqpMessage;
 
             }
@@ -250,7 +250,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
         {
             try
             {
-                amqpObject?.Abort();
+                amqpObject?.SafeClose();
             }
             catch (Exception e)
             {

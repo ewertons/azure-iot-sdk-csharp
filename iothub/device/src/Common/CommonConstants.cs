@@ -45,6 +45,9 @@ namespace Microsoft.Azure.Devices.Client
         public const string ModuleMethodPathTemplate = "/devices/{0}/modules/{1}/methods/deviceBound";
         public const string DeviceTwinPathTemplate = "/devices/{0}/twin";
         public const string ModuleTwinPathTemplate = "/devices/{0}/modules/{1}/twin";
+        public const string DeviceStreamsPathTemplate = "/devices/{0}/streams";
+        public const string ModuleStreamsPathTemplate = "/devices/{0}/modules/{1}/streams";
+
         public const string BlobUploadStatusPathTemplate = "/devices/{0}/files/";
         public const string BlobUploadPathTemplate = "/devices/{0}/files";
         public const string DeviceBoundPathCompleteTemplate = DeviceBoundPathTemplate + "/{1}";
