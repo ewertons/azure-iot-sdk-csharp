@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Devices.Shared;
+﻿using Microsoft.Azure.Devices.Client.Exceptions;
+using Microsoft.Azure.Devices.Shared;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,14 +9,13 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
     internal abstract class ResourceHolder<T> : IResourceHolder<T>, IResourceStatusListener<T> where T : IResource
     {
         #region Members-Constructor
-
         // Any status update should use status lock
         private readonly object _statusLock;
         // Any resource change should use resource lock
         private readonly SemaphoreSlim _resourceLock;
         private readonly IResourceAllocator<T> _resourceAllocator;
 
-        private T _resource; 
+        protected T _resource; 
         private OperationStatus _operationStatus;
 
         private Action _onResourceDisconnection;
@@ -24,7 +24,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
         {
             _statusLock = new object();
             _resourceLock = new SemaphoreSlim(1, 1);
-            _operationStatus = OperationStatus.Active;
+            _operationStatus = OperationStatus.Inactive;
             _resourceAllocator = resourceAllocator;
             _onResourceDisconnection = onResourceDisconnection;
         }
@@ -54,6 +54,14 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
         #endregion
 
         #region IResourceHolder
+        public OperationStatus GetOperationStatus()
+        {
+            lock(_statusLock)
+            {
+                return _operationStatus;
+            }
+        }
+
         public async Task<T> EnsureResourceAsync(DeviceIdentity deviceIdentity, TimeSpan timeout)
         {
             if (Logging.IsEnabled) Logging.Enter(this, deviceIdentity, timeout, $"{nameof(EnsureResourceAsync)}");
@@ -69,12 +77,12 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
             bool gain = await _resourceLock.WaitAsync(timeout).ConfigureAwait(false);
             if (!gain)
             {
-                throw new TimeoutException($"{this} {deviceIdentity} {nameof(EnsureResourceAsync)}({timeout}) failed to gain resource lock.");
+                throw new IotHubException($"{this} {deviceIdentity} {nameof(EnsureResourceAsync)}({timeout}) failed to gain resource lock.", true);
             }
 
             try
             {
-                if (_resource?.IsValid() ?? false)
+                if (_resource == null || !_resource.IsValid())
                 {
                     _resource = await _resourceAllocator.AllocateResourceAsync(deviceIdentity, this, timeout).ConfigureAwait(false);
                     if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(EnsureResourceAsync)}");
@@ -139,7 +147,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
 
             try
             {
-                if (!(_resource?.IsValid() ?? false))
+                if (_resource != null && _resource.IsValid())
                 {
                     _resource.Abort();
                     if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(CloseAsync)}");
@@ -160,7 +168,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
                 ThrowExceptionIfDisposed();
                 if (Logging.IsEnabled) Logging.Enter(this, _resource, $"{nameof(Abort)}");
                 _operationStatus = OperationStatus.Inactive;
-                if (!(_resource?.IsValid() ?? false))
+                if (_resource != null && _resource.IsValid())
                 {
                     _resource.Abort();
                     if (Logging.IsEnabled) Logging.Associate(this, _resource, $"{nameof(Abort)}");
@@ -174,16 +182,16 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
         public void OnResourceStatusChange(T reporter, ResourceStatus resourceStatus)
         {
             if (Logging.IsEnabled) Logging.Enter(this, reporter, resourceStatus, $"{nameof(OnResourceStatusChange)}");
-            bool disconnected = false;
+            bool unexceptedDisconnection = false;
             lock (_statusLock)
             {
                 if (_operationStatus == OperationStatus.Active && resourceStatus == ResourceStatus.Disconnected && ReferenceEquals(_resource, reporter))
                 {
                     _resource = default;
-                    disconnected = true;
+                    unexceptedDisconnection = true;
                 }
             }
-            if (disconnected)
+            if (unexceptedDisconnection)
             {
                 _onResourceDisconnection?.Invoke();
             }

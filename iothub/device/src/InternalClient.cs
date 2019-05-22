@@ -20,7 +20,6 @@ namespace Microsoft.Azure.Devices.Client
     using System.Security.Cryptography.X509Certificates;
     using System.IO;
     using Microsoft.Azure.Devices.Client.Exceptions;
-    using Microsoft.Azure.Devices.Client.Logger;
 
     /// <summary>
     /// Delegate for desired property update callbacks.  This will be called
@@ -1015,7 +1014,7 @@ namespace Microsoft.Azure.Devices.Client
         public void Dispose()
         {
             this.InnerHandler?.Dispose();
-            EventCounterLogger.GetInstance().OnDeviceClientDisposed();
+            if (DeviceEventCounter.IsEnabled) DeviceEventCounter.OnDeviceClientDisposed();
         }
 
         /// <summary>

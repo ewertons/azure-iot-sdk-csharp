@@ -7,7 +7,7 @@ namespace Microsoft.Azure.Devices.Client.Transport
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices.Client.Extensions;
     using Microsoft.Azure.Devices.Shared;
-    using Microsoft.Azure.Devices.Client.Transport.Amqp;
+    using Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp;
 #if !NETMF
     using Microsoft.Azure.Devices.Client.Transport.Mqtt;
 #endif

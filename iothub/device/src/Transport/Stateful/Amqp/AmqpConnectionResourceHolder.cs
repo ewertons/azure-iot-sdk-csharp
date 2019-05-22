@@ -6,7 +6,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
     internal class AmqpConnectionResourceHolder : ResourceHolder<IAmqpConnectionResource>, IAmqpConnectionResourceHolder
     {
         #region Members-Constructor
-        public AmqpConnectionResourceHolder(IResourceAllocator<IAmqpConnectionResource> amqpConnectionResourceAllocator, Action onResourceDisconnection) : base(amqpConnectionResourceAllocator, onResourceDisconnection)
+        internal AmqpConnectionResourceHolder(Action onResourceDisconnection) : base(AmqpConnectionAllocator.GetInstance(), onResourceDisconnection)
         {
         }
         #endregion

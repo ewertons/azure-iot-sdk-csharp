@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
 {
-    internal class AmqpReceivingLinkResourceHolder : ResourceHolder<IAmqpReceivingLinkResource>
+    internal class AmqpReceivingLinkResourceHolder : ResourceHolder<IAmqpReceivingLinkResource>, IAmqpReceivingLinkResourceHolder
     {
         #region Members-Constructor
         public AmqpReceivingLinkResourceHolder(
@@ -18,8 +18,21 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
         }
         #endregion
 
+        #region IAmqpReceivingLinkResourceHolder
+        public void DisposeDelivery(AmqpMessage amqpMessage)
+        {
+            if (Logging.IsEnabled) Logging.Enter(this, amqpMessage, $"{nameof(DisposeDelivery)}");
+            IAmqpReceivingLinkResource resource = _resource;
+            if (resource.IsValid())
+            {
+                resource.DisposeDelivery(amqpMessage);
+            }
+            if (Logging.IsEnabled) Logging.Exit(this, amqpMessage, $"{nameof(DisposeDelivery)}");
+        }
+        #endregion
+
         #region IResourceAllocator<IAmqpReceivingLinkResource>
-        private sealed class AmqpReceivingLinkResourceAllocator : IResourceAllocator<IAmqpReceivingLinkResource>
+        private class AmqpReceivingLinkResourceAllocator : IResourceAllocator<IAmqpReceivingLinkResource>
         {
             private readonly IResourceHolder<IAmqpSessionResource> _amqpSessionResourceHolder;
             private readonly AmqpLinkSettings _amqpLinkSettings;
@@ -56,7 +69,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                 return amqpReceivingLinkResource;
             }
         }
+        #endregion
     }
-
-    
 }

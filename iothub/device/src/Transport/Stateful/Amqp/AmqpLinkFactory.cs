@@ -11,10 +11,9 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
 
         private AmqpLinkFactory()
         {
-            // Important: must not throw as it's used within the static ctor.
         }
 
-        public static AmqpLinkFactory GetInstance()
+        internal static AmqpLinkFactory GetInstance()
         {
             return s_instance;
         }
@@ -44,3 +43,4 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
             throw new NotImplementedException();
         }
     }
+}

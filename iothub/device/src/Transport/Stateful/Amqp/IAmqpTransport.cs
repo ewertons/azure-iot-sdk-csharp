@@ -18,7 +18,6 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
         #endregion
 
         #region Message
-        Task<Outcome> SendMessageAsync(AmqpMessage message, TimeSpan timeout);
         Task<Message> ReceiveMessageAsync(TimeSpan timeout);
         Task<Outcome> DisposeMessageAsync(string lockToken, Outcome outcome, TimeSpan timeout);
         #endregion
@@ -30,12 +29,15 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
         #region Method
         Task EnableMethodsAsync(TimeSpan timeout);
         Task DisableMethodsAsync(TimeSpan timeout);
-        Task<Outcome> SendMethodResponseAsync(AmqpMessage message, TimeSpan timeout);
         #endregion
 
         #region Twin
         Task EnableTwinPatchAsync(TimeSpan timeout);
-        Task<Outcome> SendTwinMessageAsync(AmqpMessage message, TimeSpan timeout);
+        #endregion
+
+        #region Send/Dispose AMQP message
+        Task<Outcome> SendMessageAsync(IoTHubTopic topic, AmqpMessage message, TimeSpan timeout);
+        void DisposeDelivery(IoTHubTopic topic, AmqpMessage amqpMessage);
         #endregion
     }
 }

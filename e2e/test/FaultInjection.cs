@@ -189,7 +189,7 @@ namespace Microsoft.Azure.Devices.E2ETests
                         // 4 is the minimum notification count: connect, fault, reconnect, disable.
                         // There are cases where the retry must be timed out (i.e. very likely for MQTT where otherwise 
                         // we would attempt to send the fault injection forever.)
-                        Assert.IsTrue(setConnectionStatusChangesHandlerCount >= 4); 
+                        Assert.IsTrue(setConnectionStatusChangesHandlerCount >= 4, $"ConnectionStatusChanges {setConnectionStatusChangesHandlerCount} should > 4"); 
                     }
                     else
                     {

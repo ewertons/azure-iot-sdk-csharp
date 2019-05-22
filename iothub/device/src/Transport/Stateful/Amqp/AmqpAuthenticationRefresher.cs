@@ -18,6 +18,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
         {
             _cancellationTokenSource = cancellationTokenSource;
             _refresher = RefreshAsync(amqpCbsLink, tokenProvider, namespaceAddress, audience, refreshOn, timeout, cancellationTokenSource.Token);
+            if (DeviceEventCounter.IsEnabled) DeviceEventCounter.OnAmqpTokenRefresherStarted();
         }
 
         private async Task RefreshAsync(AmqpCbsLink amqpCbsLink, ICbsTokenProvider tokenProvider, Uri namespaceAddress, string audience, DateTime refreshesOn, TimeSpan timeout, CancellationToken cancellationToken)
@@ -60,7 +61,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
             }
         }
 
-        public static async Task<IAmqpAuthenticationRefresher> InitializeAsync(AmqpCbsLink amqpCbsLink, ICbsTokenProvider tokenProvider, Uri namespaceAddress, string audience, TimeSpan timeout)
+        internal static async Task<IAmqpAuthenticationRefresher> InitializeAsync(AmqpCbsLink amqpCbsLink, ICbsTokenProvider tokenProvider, Uri namespaceAddress, string audience, TimeSpan timeout)
         {
             if (Logging.IsEnabled) Logging.Enter(typeof(AmqpAuthenticationRefresher), tokenProvider, namespaceAddress, audience, $"{nameof(InitializeAsync)}");
             DateTime refreshOn = await amqpCbsLink.SendTokenAsync(
@@ -71,6 +72,8 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                 AccessRightsStringArray,
                 timeout
             ).ConfigureAwait(false);
+
+            if (DeviceEventCounter.IsEnabled) DeviceEventCounter.OnAmqpTokenRefreshed();
             IAmqpAuthenticationRefresher amqpAuthenticationRefresher;
             if (refreshOn < DateTime.MaxValue)
             {
@@ -101,7 +104,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
             {
                 _cancellationTokenSource.Cancel();
             }
-
+            if (DeviceEventCounter.IsEnabled) DeviceEventCounter.OnAmqpTokenRefresherStopped();
             if (Logging.IsEnabled) Logging.Exit(this, disposing, $"{nameof(Dispose)}");
         }
     }

@@ -3,6 +3,7 @@ using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Azure.Devices.Client.Extensions;
 using Microsoft.Azure.Devices.Shared;
 using System;
+using System.Diagnostics;
 using System.Globalization;
 using System.Net;
 using System.Text;
@@ -141,13 +142,16 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
         #endregion
 
         #region AmqpReceivingLink
-        internal static IResourceHolder<IAmqpReceivingLinkResource> CreateMessageReceivingLinkResourceHolder(
+        internal static IAmqpReceivingLinkResourceHolder CreateMessageReceivingLinkResourceHolder(
             DeviceIdentity deviceIdentity,
             IResourceHolder<IAmqpSessionResource> amqpSessionResourceHolder,
+            Action<AmqpMessage> messageListener,
             Action onResourceDisconnected)
         {
             AmqpLinkSettings amqpLinkSettings;
 
+            bool isModule = deviceIdentity.IotHubConnectionString.ModuleId.IsNullOrWhiteSpace();
+            Action<AmqpMessage> onEventReceived = null;
             if (deviceIdentity.IotHubConnectionString.ModuleId.IsNullOrWhiteSpace())
             {
                 // regular device, C2D message
@@ -175,14 +179,21 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                     EventsReceiverLinkSuffix,
                     null
                 );
+
+                Debug.Assert(messageListener != null);
+                onEventReceived = messageListener;
             }
 
-            IResourceHolder<IAmqpReceivingLinkResource> messageReceivingLinkResource = new AmqpReceivingLinkResourceHolder(amqpSessionResourceHolder, amqpLinkSettings, null, onResourceDisconnected);
+            IAmqpReceivingLinkResourceHolder messageReceivingLinkResource = new AmqpReceivingLinkResourceHolder(
+                amqpSessionResourceHolder, 
+                amqpLinkSettings,
+                onEventReceived, 
+                onResourceDisconnected);
             if (Logging.IsEnabled) Logging.Associate(deviceIdentity, messageReceivingLinkResource, $"{nameof(CreateMessageReceivingLinkResourceHolder)}");
             return messageReceivingLinkResource;
         }
 
-        internal static IResourceHolder<IAmqpReceivingLinkResource> CreateMethodsReceivingLinkResourceHolder(
+        internal static IAmqpReceivingLinkResourceHolder CreateMethodsReceivingLinkResourceHolder(
             DeviceIdentity deviceIdentity,
             IResourceHolder<IAmqpSessionResource> amqpSessionResourceHolder,
             string correlationId,
@@ -198,12 +209,16 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                MethodsReceiverLinkSuffix,
                MethodsCorrelationIdPrefix + correlationId
            );
-            IResourceHolder<IAmqpReceivingLinkResource> methodsReceivingLinkResource = new AmqpReceivingLinkResourceHolder(amqpSessionResourceHolder, amqpLinkSettings, messageListener, onResourceDisconnected);
+            IAmqpReceivingLinkResourceHolder methodsReceivingLinkResource = new AmqpReceivingLinkResourceHolder(
+                amqpSessionResourceHolder, 
+                amqpLinkSettings, 
+                messageListener, 
+                onResourceDisconnected);
             if (Logging.IsEnabled) Logging.Associate(deviceIdentity, methodsReceivingLinkResource, $"{nameof(CreateMethodsReceivingLinkResourceHolder)}");
             return methodsReceivingLinkResource;
         }
 
-        internal static IResourceHolder<IAmqpReceivingLinkResource> CreateTwinReceivingLinkResourceHolder(
+        internal static IAmqpReceivingLinkResourceHolder CreateTwinReceivingLinkResourceHolder(
             DeviceIdentity deviceIdentity,
             IResourceHolder<IAmqpSessionResource> amqpSessionResourceHolder,
             string correlationId,
@@ -219,12 +234,12 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                TwinReceiverLinkSuffix,
                TwinCorrelationIdPrefix + correlationId
            );
-            IResourceHolder<IAmqpReceivingLinkResource> twinReceivingLinkResource = new AmqpReceivingLinkResourceHolder(amqpSessionResourceHolder, amqpLinkSettings, messageListener, onResourceDisconnected);
+            IAmqpReceivingLinkResourceHolder twinReceivingLinkResource = new AmqpReceivingLinkResourceHolder(amqpSessionResourceHolder, amqpLinkSettings, messageListener, onResourceDisconnected);
             if (Logging.IsEnabled) Logging.Associate(deviceIdentity, twinReceivingLinkResource, $"{nameof(CreateTwinReceivingLinkResourceHolder)}");
             return twinReceivingLinkResource;
         }
 
-        internal static IResourceHolder<IAmqpReceivingLinkResource> CreateStreamReceivingLinkResourceHolder(
+        internal static IAmqpReceivingLinkResourceHolder CreateStreamReceivingLinkResourceHolder(
             DeviceIdentity deviceIdentity,
             IResourceHolder<IAmqpSessionResource> amqpSessionResourceHolder,
             string correlationId,
@@ -240,7 +255,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                StreamsReceiverLinkSuffix,
                StreamsCorrelationIdPrefix + correlationId
            );
-            IResourceHolder<IAmqpReceivingLinkResource> streamsReceivingLinkResource = new AmqpReceivingLinkResourceHolder(amqpSessionResourceHolder, amqpLinkSettings, messageListener, onResourceDisconnected);
+            IAmqpReceivingLinkResourceHolder streamsReceivingLinkResource = new AmqpReceivingLinkResourceHolder(amqpSessionResourceHolder, amqpLinkSettings, messageListener, onResourceDisconnected);
             if (Logging.IsEnabled) Logging.Associate(deviceIdentity, streamsReceivingLinkResource, $"{nameof(CreateStreamReceivingLinkResourceHolder)}");
             return streamsReceivingLinkResource;
         }

@@ -1,5 +1,4 @@
 ﻿using Microsoft.Azure.Amqp;
-using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Azure.Devices.Client.Exceptions;
 using Microsoft.Azure.Devices.Shared;
 using System;
@@ -76,30 +75,12 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
             }
 
             ReceivingAmqpLink receivingAmqpLink = new ReceivingAmqpLink(amqpLinkSettings);
-
             try
             {
-
                 receivingAmqpLink.AttachTo(_amqpSession);
                 await receivingAmqpLink.OpenAsync(timeout).ConfigureAwait(false);
-
-                IAmqpReceivingLinkResource amqpReceivingLinkResource = new AmqpReceivingLinkResource(receivingAmqpLink);
-                receivingAmqpLink.Closed += (obj, args) =>
-                {
-                    resourceStatusListener?.OnResourceStatusChange(amqpReceivingLinkResource, ResourceStatus.Disconnected);
-                };
-
-                // safty check, incase connection was closed before event handler attached
-                if (receivingAmqpLink.IsClosing())
-                {
-                    amqpReceivingLinkResource.Abort();
-                    throw AmqpReceivingLinkResource.s_receivingAmqpLinkDisconnectedException;
-                }
-
-                if (Logging.IsEnabled) Logging.Exit(this, amqpLinkSettings, timeout, $"{nameof(AllocateReceivingLinkAsync)}");
-                return amqpReceivingLinkResource;
             }
-            catch (InvalidOperationException)
+            catch (Exception e) when (e is InvalidOperationException || e is OperationCanceledException)
             {
                 if (IsValid())
                 {
@@ -110,6 +91,34 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                     throw s_amqpSessionDisconnectedException;
                 }
             }
+            catch (Exception e)
+            {
+                Exception ex = AmqpExceptionMapper.MapAmqpException(e);
+                if (ReferenceEquals(e, ex))
+                {
+                    throw;
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
+
+            IAmqpReceivingLinkResource amqpReceivingLinkResource = new AmqpReceivingLinkResource(receivingAmqpLink);
+            receivingAmqpLink.Closed += (obj, args) =>
+            {
+                resourceStatusListener?.OnResourceStatusChange(amqpReceivingLinkResource, ResourceStatus.Disconnected);
+            };
+
+            // safty check, incase connection was closed before event handler attached
+            if (receivingAmqpLink.IsClosing())
+            {
+                amqpReceivingLinkResource.Abort();
+                throw AmqpReceivingLinkResource.s_receivingAmqpLinkDisconnectedException;
+            }
+
+            if (Logging.IsEnabled) Logging.Exit(this, amqpLinkSettings, timeout, $"{nameof(AllocateReceivingLinkAsync)}");
+            return amqpReceivingLinkResource;
         }
 
         public async Task<IAmqpSendingLinkResource> AllocateSendingLinkAsync(
@@ -126,25 +135,8 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
             SendingAmqpLink sendingAmqpLink = new SendingAmqpLink(amqpLinkSettings);
             try
             {
-
                 sendingAmqpLink.AttachTo(_amqpSession);
                 await sendingAmqpLink.OpenAsync(timeout).ConfigureAwait(false);
-
-                IAmqpSendingLinkResource amqpSendingLinkResource = new AmqpSendingLinkResource(sendingAmqpLink);
-                sendingAmqpLink.Closed += (obj, args) =>
-                {
-                    resourceStatusListener?.OnResourceStatusChange(amqpSendingLinkResource, ResourceStatus.Disconnected);
-                };
-
-                // safty check, incase connection was closed before event handler attached
-                if (sendingAmqpLink.IsClosing())
-                {
-                    amqpSendingLinkResource.Abort();
-                    throw AmqpSendingLinkResource.s_sendingAmqpLinkDisconnectedException;
-                }
-
-                if (Logging.IsEnabled) Logging.Exit(this, amqpLinkSettings, timeout, $"{nameof(AllocateSendingLinkAsync)}");
-                return amqpSendingLinkResource;
             }
             catch (InvalidOperationException)
             {
@@ -157,6 +149,34 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful.Amqp
                     throw s_amqpSessionDisconnectedException;
                 }
             }
+            catch (Exception e)
+            {
+                Exception ex = AmqpExceptionMapper.MapAmqpException(e);
+                if (ReferenceEquals(e, ex))
+                {
+                    throw;
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
+
+            IAmqpSendingLinkResource amqpSendingLinkResource = new AmqpSendingLinkResource(sendingAmqpLink);
+            sendingAmqpLink.Closed += (obj, args) =>
+            {
+                resourceStatusListener?.OnResourceStatusChange(amqpSendingLinkResource, ResourceStatus.Disconnected);
+            };
+
+            // safty check, incase connection was closed before event handler attached
+            if (sendingAmqpLink.IsClosing())
+            {
+                amqpSendingLinkResource.Abort();
+                throw AmqpSendingLinkResource.s_sendingAmqpLinkDisconnectedException;
+            }
+
+            if (Logging.IsEnabled) Logging.Exit(this, amqpLinkSettings, timeout, $"{nameof(AllocateSendingLinkAsync)}");
+            return amqpSendingLinkResource;
         }
         #endregion
 
