@@ -47,6 +47,7 @@ namespace Microsoft.Azure.Devices.Client.Transport.Stateful
                 _attempts++;
                 double delta = _currentIntervalMilliseconds * _randomization;
                 double intervalMilliseconds = _currentIntervalMilliseconds - delta + _random.NextDouble() * (delta * 2 + 1);
+                _currentIntervalMilliseconds *= _multiplier;
                 if (intervalMilliseconds > _maxIntervalMilliseconds)
                 {
                     return _maxInterval;
