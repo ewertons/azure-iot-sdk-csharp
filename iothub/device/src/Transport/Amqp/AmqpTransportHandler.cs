@@ -3,6 +3,7 @@
 
 using Microsoft.Azure.Amqp;
 using Microsoft.Azure.Amqp.Framing;
+using Microsoft.Azure.Devices.Client.Common;
 using Microsoft.Azure.Devices.Client.Exceptions;
 using Microsoft.Azure.Devices.Client.Extensions;
 using Microsoft.Azure.Devices.Shared;
@@ -214,6 +215,24 @@ namespace Microsoft.Azure.Devices.Client.Transport.Amqp
                 catch (Exception exception) when (!exception.IsFatal() && !(exception is OperationCanceledException))
                 {
                     throw AmqpClientHelper.ToIotHubClientContract(exception);
+                }
+                catch (OperationCanceledException)
+                {
+                    bool isObjectDisposedExceptionDisabled = false;
+#if !NET451
+                    AppContext.TryGetSwitch(AppContextConstants.DisableObjectDisposedExceptionForReceiveAsync, out isObjectDisposedExceptionDisabled);
+#endif
+                    // If cancellationToken.IsCancellationRequested is false, then this OperationCanceledException comes from 
+                    //  _amqpUnit.ReceiveMessageAsync, which then should be optionally suppresed by isObjectDisposedExceptionDisabled 
+                    // to match the behavior of Azure IoT C# SDK released on 2018-08-17 (nuget 1.18.0).
+                    if (cancellationToken.IsCancellationRequested || !isObjectDisposedExceptionDisabled)
+                    {
+                        throw;
+                    }
+                    else
+                    {
+                        break;
+                    }
                 }
             }
             if (Logging.IsEnabled) Logging.Exit(this, timeout, cancellationToken, $"{nameof(ReceiveAsync)}");
