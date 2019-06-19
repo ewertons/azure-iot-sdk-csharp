@@ -23,6 +23,7 @@ namespace Microsoft.Azure.Devices.E2ETests
 
         public AppContextTests()
         {
+            InitTcpLogger();
 #if !NET451
             AppContext.SetSwitch(AppContextConstants.DisableObjectDisposedExceptionForReceiveAsync, true);
 #endif
@@ -73,6 +74,23 @@ namespace Microsoft.Azure.Devices.E2ETests
             }
         }
 
+        private static System.Net.Sockets.TcpClient logger;
+
+
+        private static void InitTcpLogger()
+        {
+            logger = new System.Net.Sockets.TcpClient();
+            logger.Connect("localhost", 8877);
+        }
+
+        private void TcpLog(string message)
+        {
+            byte[] buffer = Encoding.ASCII.GetBytes(DateTime.Now.ToString("yyyy-MM-dd hh:mm:ss", null) + " " + message);
+        
+            logger.GetStream().Write(buffer, 0, buffer.Length);
+            logger.GetStream().Flush();
+        }
+
         private async Task DCLC_ReceiveAsyncAfterDispose(TestDeviceType testDeviceType, Client.TransportType transportType)
         {
             TestDevice testDevice = await TestDevice.GetTestDeviceAsync(DevicePrefix, testDeviceType).ConfigureAwait(false);
@@ -81,6 +99,8 @@ namespace Microsoft.Azure.Devices.E2ETests
             {
                 Exception exceptionCaught = null;
                 Client.Message message = null;
+
+                TcpLog("Look ma, a log!!");
 
                 try
                 {
