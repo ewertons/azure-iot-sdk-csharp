@@ -10,6 +10,7 @@ using DotNetty.Handlers.Tls;
 using DotNetty.Transport.Bootstrapping;
 using DotNetty.Transport.Channels;
 using DotNetty.Transport.Channels.Sockets;
+using Microsoft.Azure.Devices.Client.Common;
 using Microsoft.Azure.Devices.Client.Exceptions;
 using Microsoft.Azure.Devices.Client.Extensions;
 using Microsoft.Azure.Devices.Client.TransientFaultHandling;
@@ -209,27 +210,47 @@ namespace Microsoft.Azure.Devices.Client.Transport.Mqtt
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            this.EnsureValidState();
-
-            if (this.State != TransportState.Receiving)
+            try
             {
-                await this.SubscribeAsync().ConfigureAwait(true);
-            }
+                this.EnsureValidState();
 
-            bool hasMessage = await this.ReceiveMessageArrivalAsync(timeout, cancellationToken).ConfigureAwait(true);
-
-            if (hasMessage)
-            {
-                lock (this.syncRoot)
+                if (this.State != TransportState.Receiving)
                 {
-                    this.messageQueue.TryDequeue(out message);
-                    message.LockToken = message.LockToken;
-                    if (this.qos == QualityOfService.AtLeastOnce)
-                    {
-                        this.completionQueue.Enqueue(message.LockToken);
-                    }
+                    await this.SubscribeAsync().ConfigureAwait(true);
+                }
 
-                    message.LockToken = this.generationId + message.LockToken;
+                bool hasMessage = await this.ReceiveMessageArrivalAsync(timeout, cancellationToken).ConfigureAwait(true);
+
+                if (hasMessage)
+                {
+                    lock (this.syncRoot)
+                    {
+                        this.messageQueue.TryDequeue(out message);
+                        message.LockToken = message.LockToken;
+                        if (this.qos == QualityOfService.AtLeastOnce)
+                        {
+                            this.completionQueue.Enqueue(message.LockToken);
+                        }
+
+                        message.LockToken = this.generationId + message.LockToken;
+                    }
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                bool isObjectDisposedExceptionDisabled = false;
+#if !NET451
+                AppContext.TryGetSwitch(AppContextConstants.DisableObjectDisposedExceptionForReceiveAsync, out isObjectDisposedExceptionDisabled);
+#endif
+
+                // If the InvalidOperationException comes from EnsureValidState and the transport is closed the scenario
+                // matches the exception that can be optionally suppresed by DisableObjectDisposedExceptionForReceiveAsync 
+                // (to match the behavior of Azure IoT C# SDK released on 2018-08-17 (nuget 1.18.0)).
+                // This logic must not be moved to EnsureValidState itself 
+                // since that function is also used by other features not covered by this AppContext switch.
+                if (this.State != TransportState.Closed || !isObjectDisposedExceptionDisabled)
+                {
+                    throw;
                 }
             }
 

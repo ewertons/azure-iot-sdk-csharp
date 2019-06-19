@@ -33,7 +33,27 @@ namespace Microsoft.Azure.Devices.E2ETests
         #region ReceiveAsyncAfterDispose
 
         [TestMethod]
-        public async Task AppConfig_ReceiveAsyncAfterDispose_Sasl_Amqp()
+        public async Task AppContext_ReceiveAsyncAfterDispose_Sasl_Amqp()
+        {
+            bool isFlagSet = false;
+            bool flag = false;
+
+#if !NET451
+            isFlagSet = AppContext.TryGetSwitch(AppContextConstants.DisableObjectDisposedExceptionForReceiveAsync, out flag);
+#endif
+
+            if (isFlagSet)
+            {
+                await DCLC_ReceiveAsyncAfterDispose(TestDeviceType.Sasl, Client.TransportType.Amqp_Tcp_Only).ConfigureAwait(false);
+            }
+            else
+            {
+                Assert.Fail("AppContext flag DisableObjectDisposedExceptionForReceiveAsync not set");
+            }
+        }
+
+        [TestMethod]
+        public async Task AppContext_ReceiveAsyncAfterDispose_Sasl_Mqtt()
         {
 
             bool isFlagSet = false;
@@ -45,7 +65,7 @@ namespace Microsoft.Azure.Devices.E2ETests
 
             if (isFlagSet)
             {
-                await DCLC_ReceiveAsyncAfterDispose(TestDeviceType.Sasl, Client.TransportType.Amqp_Tcp_Only).ConfigureAwait(false);
+                await DCLC_ReceiveAsyncAfterDispose(TestDeviceType.Sasl, Client.TransportType.Mqtt_Tcp_Only).ConfigureAwait(false);
             }
             else
             {
@@ -94,7 +114,7 @@ namespace Microsoft.Azure.Devices.E2ETests
         #region ReceiveAsyncAfterCloseAsync
         
         [TestMethod]
-        public async Task AppConfig_ReceiveAsyncAfterCloseAsync_x509_AmqpWs()
+        public async Task AppContext_ReceiveAsyncAfterCloseAsync_x509_AmqpWs()
         {
             bool isFlagSet = false;
             bool flag = false;
